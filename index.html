@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Image Compression Using Huffman & Quadtree Coding - Part 1</title>
+  <meta name="description" content="Part 1 Foundation: Image Preprocessing, Pixel Frequency Analysis, Shannon Entropy, and Huffman Binary Tree Construction." />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <!-- Loading Overlay -->
+  <div id="appLoadingOverlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <p>Processing Image & Building Huffman Tree...</p>
+  </div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-top">
+        <h1 class="app-title">
+          <span>⚡ Image Compression</span>
+        </h1>
+        <span class="badge-stage">Part 1: Foundation & Frequency Analysis</span>
+      </div>
+      <p class="app-subtitle">
+        Engineering Project Stage 1: Image Preprocessing, Grayscale Extraction, Pixel Frequency Analysis, Shannon Entropy, and Huffman Code Construction.
+      </p>
+    </header>
+
+    <!-- Project Pipeline Progress Bar -->
+    <div class="step-tracker">
+      <div class="step-card active">
+        <div class="step-num">1</div>
+        <div class="step-info">
+          <h4>Image Input</h4>
+          <p>Metadata & Upload</p>
+        </div>
+      </div>
+      <div class="step-card active">
+        <div class="step-num">2</div>
+        <div class="step-info">
+          <h4>Preprocessing</h4>
+          <p>Grayscale (0–255)</p>
+        </div>
+      </div>
+      <div class="step-card active">
+        <div class="step-num">3</div>
+        <div class="step-info">
+          <h4>Frequencies</h4>
+          <p>Histogram & Entropy</p>
+        </div>
+      </div>
+      <div class="step-card active">
+        <div class="step-num">4</div>
+        <div class="step-info">
+          <h4>Huffman Coding</h4>
+          <p>Tree & Code Map</p>
+        </div>
+      </div>
+      <div class="step-card disabled">
+        <div class="step-num">5</div>
+        <div class="step-info">
+          <h4>Quadtree Coding</h4>
+          <p><span class="badge-todo">PART 2 TODO</span></p>
+        </div>
+      </div>
+      <div class="step-card disabled">
+        <div class="step-num">6</div>
+        <div class="step-info">
+          <h4>Decompression</h4>
+          <p><span class="badge-todo">PART 2 TODO</span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 1: Image Input & Basic Metadata -->
+    <section class="card-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span>📷 1. Image Selection & Metadata</span>
+        </h2>
+      </div>
+
+      <div class="grid-2col">
+        <!-- Left: Upload Box -->
+        <div>
+          <div class="upload-dropzone" id="dropZone">
+            <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            <h3>Drag & Drop your image here</h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">Supports PNG, JPG, WEBP, GIF, BMP</p>
+            <input type="file" id="imageFileInput" accept="image/*" style="display: none;" />
+          </div>
+
+          <div class="sample-presets">
+            <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Or try sample image:</span>
+            <button class="btn-sample" data-sample="gradient">Linear Gradient</button>
+            <button class="btn-sample" data-sample="checkerboard">Checkerboard</button>
+            <button class="btn-sample" data-sample="shapes">Geometric Shapes</button>
+          </div>
+        </div>
+
+        <!-- Right: Metadata Table -->
+        <div>
+          <h3 style="font-size: 1.1rem; margin-bottom: 1rem; color: var(--text-main);">Original Image Information</h3>
+          <table class="metadata-table">
+            <tbody>
+              <tr>
+                <td class="label">File Name</td>
+                <td class="value" id="infoFileName">-</td>
+              </tr>
+              <tr>
+                <td class="label">Dimensions (W × H)</td>
+                <td class="value" id="infoDimensions">-</td>
+              </tr>
+              <tr>
+                <td class="label">Image Format</td>
+                <td class="value" id="infoFormat">-</td>
+              </tr>
+              <tr>
+                <td class="label">Total Pixel Count</td>
+                <td class="value" id="infoTotalPixels">-</td>
+              </tr>
+              <tr>
+                <td class="label">Original File Size</td>
+                <td class="value" id="infoFileSize">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: Image Preprocessing (Grayscale Conversion) -->
+    <section class="card-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span>🎨 2. Image Preprocessing (Grayscale Conversion)</span>
+        </h2>
+      </div>
+
+      <div class="info-callout">
+        <strong>Academic Explanation:</strong> Standard color images use 24 bits per pixel (8 bits for Red, 8 for Green, 8 for Blue). 
+        To build the foundation of Huffman compression, we convert the image to single-channel 8-bit Grayscale using the ITU-R BT.601 Luminance formula:
+        <code>Y = 0.299·R + 0.587·G + 0.114·B</code>. This maps each pixel to an intensity value between <code>0</code> (Black) and <code>255</code> (White).
+      </div>
+
+      <div class="grid-2col">
+        <div class="preview-box">
+          <img id="originalImagePreview" alt="Original Image Preview" />
+          <div class="preview-caption">Original Image Input</div>
+        </div>
+        <div class="preview-box">
+          <img id="grayscaleImagePreview" alt="Grayscale Processed Preview" />
+          <div class="preview-caption">Processed 8-bit Grayscale Image</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: Pixel Frequency & Shannon Entropy Analysis -->
+    <section class="card-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span>📊 3. Pixel Intensity Frequency & Entropy Analysis</span>
+        </h2>
+      </div>
+
+      <!-- Statistical Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Pixels</div>
+          <div class="stat-value" id="statTotalPixels">0</div>
+          <div class="stat-sub">Sample size N</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Unique Intensities</div>
+          <div class="stat-value" id="statUniqueSymbols">0</div>
+          <div class="stat-sub">Out of 256 possible</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Intensity Range</div>
+          <div class="stat-value" id="statMinMaxIntensity">0 - 255</div>
+          <div class="stat-sub">Min to Max (0..255)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Pixel Intensity</div>
+          <div class="stat-value" id="statAvgIntensity">0</div>
+          <div class="stat-sub">Mean brightness level</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Shannon Entropy H(X)</div>
+          <div class="stat-value" id="statEntropy">0 bits/px</div>
+          <div class="stat-sub">Theoretical lower bound</div>
+        </div>
+      </div>
+
+      <!-- Histogram Chart -->
+      <div class="chart-container">
+        <canvas id="histogramChartCanvas"></canvas>
+      </div>
+    </section>
+
+    <!-- SECTION 4: Foundation of Huffman Coding & Generated Code Table -->
+    <section class="card-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span>🌲 4. Huffman Coding Foundation & Metrics</span>
+        </h2>
+      </div>
+
+      <!-- Theoretical Metrics Cards -->
+      <div class="stats-grid" style="margin-bottom: 1.75rem;">
+        <div class="stat-card">
+          <div class="stat-label">Uncompressed Raw Data</div>
+          <div class="stat-value" id="statRawBitSize">0 Bytes</div>
+          <div class="stat-sub">Baseline @ 8 bits/pixel</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Theoretical Huffman Data</div>
+          <div class="stat-value" id="statHuffmanBitSize">0 Bytes</div>
+          <div class="stat-sub">Sum of (freq × code length)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Code Length (L̄)</div>
+          <div class="stat-value" id="statAvgCodeLength">0 bits/px</div>
+          <div class="stat-sub">Vs 8 bits/px baseline</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Theoretical Compression Ratio</div>
+          <div class="stat-value" id="statTheoreticalRatio">1.00 : 1</div>
+          <div class="stat-sub">Raw Bits / Huffman Bits</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Theoretical Space Savings</div>
+          <div class="stat-value" id="statSpaceSavings" style="color: #34d399;">0%</div>
+          <div class="stat-sub">Percentage reduction</div>
+        </div>
+      </div>
+
+      <!-- Toolbar & Search -->
+      <div class="table-toolbar">
+        <h3 style="font-size: 1.05rem;">Generated Symbol Codebook & Frequency Table</h3>
+        <input type="text" id="tableSearchInput" class="search-input" placeholder="Search intensity or code..." />
+      </div>
+
+      <!-- Code Table -->
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Pixel Intensity (0–255)</th>
+              <th>Frequency (Count)</th>
+              <th>Probability (p<sub>i</sub>)</th>
+              <th>Occurrences (%)</th>
+              <th>Generated Huffman Code</th>
+              <th>Code Length</th>
+              <th>Subtree Bit Weight</th>
+            </tr>
+          </thead>
+          <tbody id="huffmanCodeTableBody">
+            <!-- Dynamically rendered -->
+          </tbody>
+        </table>
+        <div class="pagination-container" id="tablePaginationControls">
+          <!-- Dynamically rendered -->
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: Huffman Binary Tree Visualization -->
+    <section class="card-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span>🌿 5. Huffman Binary Tree Visualization</span>
+        </h2>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <label for="treeDepthControl" style="font-size: 0.85rem; color: var(--text-muted);">Max Tree Display Depth:</label>
+          <select id="treeDepthControl" style="background: rgba(15,23,42,0.8); border: 1px solid var(--border-color); color: white; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.85rem;">
+            <option value="3">Depth 3 (Overview)</option>
+            <option value="4">Depth 4 (Standard)</option>
+            <option value="5" selected>Depth 5 (Detailed)</option>
+            <option value="6">Depth 6 (Deep)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="info-callout">
+        <strong>Tree Construction Algorithm:</strong> The greedy algorithm repeatedly dequeues the 2 lowest-frequency nodes from a Min-Heap, creates a combined parent internal node, and enqueues it back. Left branch represents bit <code>0</code> (blue), right branch represents bit <code>1</code> (red).
+      </div>
+
+      <div class="tree-visualizer-box" id="treeSvgContainer">
+        <!-- SVG tree rendered by huffmanVisualizer.js -->
+      </div>
+    </section>
+
+    <!-- SECTION 6: Project Roadmap & Future Stages (PART 2 TODO) -->
+    <section class="card-section" style="border-style: dashed; border-color: rgba(245, 158, 11, 0.4);">
+      <div class="section-header">
+        <h2 class="section-title" style="color: #fbbf24;">
+          <span>🚧 6. Future Project Stages (PART 2 ROADMAP)</span>
+        </h2>
+        <span class="badge-todo">Part 2 Placeholders</span>
+      </div>
+
+      <p class="app-subtitle" style="margin-bottom: 1.5rem;">
+        The foundation (Part 1) is now complete. The following modules are planned for Part 2 of this college project:
+      </p>
+
+      <div class="roadmap-grid">
+        <div class="roadmap-card">
+          <h4>📦 1. Compressed File Packing</h4>
+          <p>
+            Pack the variable-length bitstream into Uint8Array bytes along with the Huffman tree header serialization to generate a downloadable <code>.huff</code> compressed file.
+          </p>
+        </div>
+
+        <div class="roadmap-card">
+          <h4>🔓 2. Huffman Decompressor</h4>
+          <p>
+            Parse the serialized Huffman header and reconstruct original grayscale pixel array by bitstream traversal from root to leaf nodes.
+          </p>
+        </div>
+
+        <div class="roadmap-card">
+          <h4>🍀 3. Quadtree Decomposition</h4>
+          <p>
+            Recursively divide spatial image quadrants based on variance threshold to eliminate spatial redundancy before/alongside Huffman encoding.
+          </p>
+        </div>
+
+        <div class="roadmap-card">
+          <h4>📈 4. Performance & PSNR Comparison</h4>
+          <p>
+            Measure actual compressed file size, execution time (ms), compression ratio, and Peak Signal-to-Noise Ratio (PSNR) across multiple image types.
+          </p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
